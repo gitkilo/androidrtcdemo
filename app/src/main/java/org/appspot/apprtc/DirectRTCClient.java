@@ -246,7 +246,6 @@ public class DirectRTCClient implements AppRTCClient, TCPChannelClient.TCPChanne
           );
       events.onConnectedToRoom(parameters);
     }
-    sendMessage("GET /sign_in?user@kilo-andrioid HTTP/1.0\\r\\n\\r\\n");
   }
 
   @Override

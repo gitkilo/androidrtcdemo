@@ -414,6 +414,11 @@ public class WebSocketRTCClient implements AppRTCClient, WebSocketChannelEvents 
               }
             }
           }
+
+          @Override
+          public void onPeerId(String peerId) {
+
+          }
         });
     httpConnection.send();
   }

@@ -65,6 +65,8 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
 
+import static org.appspot.apprtc.PCRTCClient.*;
+
 /**
  * Activity for peer connection call setup, call waiting
  * and call view.
@@ -340,7 +342,8 @@ public class CallActivity extends Activity implements AppRTCClient.SignalingEven
       appRtcClient = new WebSocketRTCClient(this);
     } else {
       Log.i(TAG, "Using DirectRTCClient because room name looks like an IP.");
-      appRtcClient = new DirectRTCClient(this);
+//      appRtcClient = new DirectRTCClient(this);
+      appRtcClient = new PCRTCClient(this);
     }
     // Create connection parameters.
     String urlParameters = intent.getStringExtra(EXTRA_URLPARAMETERS);
@@ -751,11 +754,16 @@ public class CallActivity extends Activity implements AppRTCClient.SignalingEven
     signalingParameters = params;
     logAndToast("Creating peer connection, delay=" + delta + "ms");
     VideoCapturer videoCapturer = null;
+    PCRTCClient client = (PCRTCClient)appRtcClient;
+    //  && client.getRoomState() == ConnectionState.CONNECT_READY
     if (peerConnectionParameters.videoCallEnabled) {
       videoCapturer = createVideoCapturer();
     }
-    peerConnectionClient.createPeerConnection(
-        localProxyVideoSink, remoteSinks, videoCapturer, signalingParameters);
+//    if (client.getRoomState() == ConnectionState.CONNECT_READY)
+    {
+        peerConnectionClient.createPeerConnection(
+              localProxyVideoSink, remoteSinks, videoCapturer, signalingParameters);
+    }
 
     if (signalingParameters.initiator) {
       logAndToast("Creating OFFER...");
@@ -801,7 +809,7 @@ public class CallActivity extends Activity implements AppRTCClient.SignalingEven
         }
         logAndToast("Received remote " + sdp.type + ", delay=" + delta + "ms");
         peerConnectionClient.setRemoteDescription(sdp);
-//        if (!signalingParameters.initiator)
+        if (!signalingParameters.initiator)
         {
           logAndToast("Creating ANSWER...");
           // Create answer. Answer SDP will be sent to offering client in
@@ -868,10 +876,14 @@ public class CallActivity extends Activity implements AppRTCClient.SignalingEven
       public void run() {
         if (appRtcClient != null) {
           logAndToast("Sending " + sdp.type + ", delay=" + delta + "ms");
+          if (((PCRTCClient)appRtcClient).getRoomState() == ConnectionState.CONNECT_READY)
+          {
+            ((PCRTCClient)appRtcClient).sendWait(sdp);
+          }
           if (signalingParameters.initiator) {
             appRtcClient.sendOfferSdp(sdp);
           } else {
-            appRtcClient.sendAnswerSdp(sdp);
+//            appRtcClient.sendAnswerSdp(sdp);
           }
         }
         if (peerConnectionParameters.videoMaxBitrate > 0) {

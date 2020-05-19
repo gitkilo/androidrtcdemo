@@ -219,6 +219,11 @@ public class WebSocketChannelClient {
     AsyncHttpURLConnection httpConnection =
         new AsyncHttpURLConnection(method, postUrl, message, new AsyncHttpEvents() {
           @Override
+          public void onPeerId(String peerId) {
+
+          }
+
+          @Override
           public void onHttpError(String errorMessage) {
             reportError("WS " + method + " error: " + errorMessage);
           }

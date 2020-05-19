@@ -36,6 +36,7 @@ public class AsyncHttpURLConnection {
   public interface AsyncHttpEvents {
     void onHttpError(String errorMessage);
     void onHttpComplete(String response);
+    void onPeerId(String peerId);
   }
 
   public AsyncHttpURLConnection(String method, String url, String message, AsyncHttpEvents events) {
@@ -95,6 +96,11 @@ public class AsyncHttpURLConnection {
         return;
       }
       InputStream responseStream = connection.getInputStream();
+      if (null != connection.getHeaderField("Pragma"))
+      {
+          String peerId = connection.getHeaderField("Pragma");
+          events.onPeerId(peerId);
+      }
       String response = drainStream(responseStream);
       responseStream.close();
       connection.disconnect();

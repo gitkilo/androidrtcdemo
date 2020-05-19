@@ -80,6 +80,11 @@ private String peerId = "";
             peerId = roomHttpResponseParse(response);
             sendWait();
           }
+
+          @Override
+          public void onPeerId(String peerId) {
+
+          }
         });
     httpConnection.send();
   }
@@ -99,6 +104,11 @@ private String peerId = "";
               public void onHttpComplete(String response) {
 //                int peerId = roomHttpResponseParse(response);
                 readlyToVideo(response);
+              }
+
+              @Override
+              public void onPeerId(String peerId) {
+
               }
             });
     httpConnection.send();
