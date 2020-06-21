@@ -1194,7 +1194,7 @@ public class PeerConnectionClient {
   private class PCObserver implements PeerConnection.Observer {
     @Override
     public void onIceCandidate(final IceCandidate candidate) {
-//      executor.execute(() -> events.onIceCandidate(candidate));
+      executor.execute(() -> events.onIceCandidate(candidate));
     }
 
     @Override

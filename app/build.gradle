@@ -3,7 +3,11 @@ apply plugin: 'com.android.application'
 android {
     compileSdkVersion 29
     buildToolsVersion "29.0.3"
-
+//    sourceSets {
+//        main{
+//            jni.srcDirs=['/Users/chifengliang/cfl/chromium/webrtc_android/src']
+//        }
+//    }
     defaultConfig {
         applicationId "com.kilo.rtcdemo"
         minSdkVersion 24
@@ -42,5 +46,5 @@ dependencies {
     implementation 'javax.annotation:javax.annotation-api:1.3.2'
     implementation 'com.google.code.findbugs:jsr305:3.0.2'
 //    implementation('com.atlassian.bundles:jsr305:1.1')
-    compile 'com.android.support:multidex:1.0.2' // api 20 以下
+    implementation 'com.android.support:multidex:1.0.3' // api 20 以下
 }

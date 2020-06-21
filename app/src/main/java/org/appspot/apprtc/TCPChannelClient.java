@@ -190,9 +190,10 @@ public class TCPChannelClient {
       });
 
       while (true) {
-        final String message;
+        char[] read = new char[40960];
         try {
-          message = in.readLine();
+          in.read(read);
+//          message = in.readLine();
         } catch (IOException e) {
           synchronized (rawSocketLock) {
             // If socket was closed, this is expected.
@@ -206,15 +207,17 @@ public class TCPChannelClient {
         }
 
         // No data received, rawSocket probably closed.
-        if (message == null) {
-          break;
+        final StringBuffer message = new StringBuffer();
+        message.append(read);
+        if (message.length() == 0) {
+          continue;
         }
 
         executor.execute(new Runnable() {
           @Override
           public void run() {
             Log.v(TAG, "Receive: " + message);
-            eventListener.onTCPMessage(message);
+            eventListener.onTCPMessage(message.toString());
           }
         });
       }

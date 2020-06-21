@@ -556,13 +556,13 @@ public class PeerConnection {
 
     /*
      * Experimental flag that enables a use of media transport. If this is true, the media transport
-     * factory MUST be provided to the PeerConnectionFactory.
+     * factory MUST be provided to the .
      */
     public boolean useMediaTransport;
 
     /*
      * Experimental flag that enables a use of media transport for data channels. If this is true,
-     * the media transport factory MUST be provided to the PeerConnectionFactory.
+     * the media transport factory MUST be provided to the .
      */
     public boolean useMediaTransportForDataChannels;
 

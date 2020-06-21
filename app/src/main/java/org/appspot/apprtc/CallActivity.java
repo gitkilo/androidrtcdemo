@@ -65,8 +65,6 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
 
-import static org.appspot.apprtc.PCRTCClient.*;
-
 /**
  * Activity for peer connection call setup, call waiting
  * and call view.
@@ -338,12 +336,12 @@ public class CallActivity extends Activity implements AppRTCClient.SignalingEven
 
     // Create connection client. Use DirectRTCClient if room name is an IP otherwise use the
     // standard WebSocketRTCClient.
+
     if (loopback || !DirectRTCClient.IP_PATTERN.matcher(roomId).matches()) {
       appRtcClient = new WebSocketRTCClient(this);
     } else {
       Log.i(TAG, "Using DirectRTCClient because room name looks like an IP.");
-//      appRtcClient = new DirectRTCClient(this);
-      appRtcClient = new PCRTCClient(this);
+      appRtcClient = new DirectRTCClient(this);
     }
     // Create connection parameters.
     String urlParameters = intent.getStringExtra(EXTRA_URLPARAMETERS);
@@ -754,16 +752,11 @@ public class CallActivity extends Activity implements AppRTCClient.SignalingEven
     signalingParameters = params;
     logAndToast("Creating peer connection, delay=" + delta + "ms");
     VideoCapturer videoCapturer = null;
-    PCRTCClient client = (PCRTCClient)appRtcClient;
-    //  && client.getRoomState() == ConnectionState.CONNECT_READY
     if (peerConnectionParameters.videoCallEnabled) {
       videoCapturer = createVideoCapturer();
     }
-//    if (client.getRoomState() == ConnectionState.CONNECT_READY)
-    {
-        peerConnectionClient.createPeerConnection(
-              localProxyVideoSink, remoteSinks, videoCapturer, signalingParameters);
-    }
+    peerConnectionClient.createPeerConnection(
+          localProxyVideoSink, remoteSinks, videoCapturer, signalingParameters);
 
     if (signalingParameters.initiator) {
       logAndToast("Creating OFFER...");
@@ -876,15 +869,16 @@ public class CallActivity extends Activity implements AppRTCClient.SignalingEven
       public void run() {
         if (appRtcClient != null) {
           logAndToast("Sending " + sdp.type + ", delay=" + delta + "ms");
-          if (((PCRTCClient)appRtcClient).getRoomState() == ConnectionState.CONNECT_READY)
+//          if (((PCRTCClient)appRtcClient).getRoomState() == ConnectionState.CONNECT_READY)
           {
-            ((PCRTCClient)appRtcClient).sendWait(sdp);
+
           }
           if (signalingParameters.initiator) {
             appRtcClient.sendOfferSdp(sdp);
           } else {
-//            appRtcClient.sendAnswerSdp(sdp);
+            appRtcClient.sendAnswerSdp(sdp);
           }
+//          ((PCRTCClient)appRtcClient).sendMessage(sdp);
         }
         if (peerConnectionParameters.videoMaxBitrate > 0) {
           Log.d(TAG, "Set video maximum bitrate: " + peerConnectionParameters.videoMaxBitrate);

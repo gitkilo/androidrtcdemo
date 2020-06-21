@@ -22,13 +22,14 @@ import java.util.Scanner;
  * Asynchronous http requests implementation.
  */
 public class AsyncHttpURLConnection {
-  private static final int HTTP_TIMEOUT_MS = 8000;
+  private static final int HTTP_TIMEOUT_MS = 0;
   private static final String HTTP_ORIGIN = "https://appr.tc";
   private final String method;
   private final String url;
   private final String message;
   private final AsyncHttpEvents events;
   private String contentType;
+  private int peerId = -1;
 
   /**
    * Http requests callbacks.
@@ -40,10 +41,16 @@ public class AsyncHttpURLConnection {
   }
 
   public AsyncHttpURLConnection(String method, String url, String message, AsyncHttpEvents events) {
+    this(method, url, message, events, -1);
+  }
+
+  public AsyncHttpURLConnection(String method, String url, String message, AsyncHttpEvents events, int peerId)
+  {
     this.method = method;
     this.url = url;
     this.message = message;
     this.events = events;
+    this.peerId = peerId;
   }
 
   public void setContentType(String contentType) {
@@ -79,7 +86,10 @@ public class AsyncHttpURLConnection {
       } else {
         connection.setRequestProperty("Content-Type", contentType);
       }
-
+      if (peerId > 0)
+      {
+         connection.setRequestProperty("Pragma", peerId + "");
+      }
       // Send POST request.
       if (doOutput && postData.length > 0) {
         OutputStream outStream = connection.getOutputStream();
