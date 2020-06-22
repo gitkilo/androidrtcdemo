@@ -3,6 +3,7 @@ package com.kilo.rtcdemo;
 import android.app.Activity;
 import android.content.Intent;
 import android.os.Bundle;
+import android.os.SystemClock;
 import android.util.Log;
 import android.view.View;
 import android.widget.EditText;
@@ -81,7 +82,6 @@ public class MainActivity extends Activity implements PeerListAdapter.OnClickLis
                     @Override
                     public void onHttpComplete(String response) {
                         showToast("sign success.");
-                        showToast("sendWait:" + response);
                         if (isEmpty(response))
                         {
                             return;
@@ -128,86 +128,12 @@ public class MainActivity extends Activity implements PeerListAdapter.OnClickLis
                     @Override
                     public void onHttpError(String errorMessage) {
                         Log.e(TAG, "Room connection error: " + errorMessage);
-                        showToast("sendWait error." + errorMessage);
                     }
 
                     @Override
                     public void onHttpComplete(String response) {
-                        showToast("sendWait:" + response);
-                        if (isEmpty(response) || !needWait)
-                        {
-                            if (null != MyCallActivity.instance)
-                            {
-                                try
-                                {
-                                    MyCallActivity.instance.parseWaitResult(new JSONObject(response));
-                                }
-                                catch (Exception e)
-                                {
-
-                                }
-                            }
-                            return;
-                        }
-                        try
-                        {
-                            JSONObject json = new JSONObject(response);
-                            if (json.has("type"))
-                            {
-                                if (json.getString("type").equals("offer"))
-                                {
-                                    Intent intent = new Intent(MainActivity.this, MyCallActivity.class);
-                                    intent.putExtra("sdp", json.getString("sdp"));
-                                    intent.putExtra("peer_id", peerId);
-                                    intent.putExtra("to_peer_id", Integer.parseInt(toPeerId));
-                                    startActivity(intent);
-                                    return;
-                                }
-                                else if (json.getString("type").equals("candidate"))
-                                {
-                                    Intent intent = new Intent(MainActivity.this, MyCallActivity.class);
-                                    intent.putExtra("candidate", response);
-                                    intent.putExtra("peer_id", peerId);
-                                    intent.putExtra("to_peer_id", Integer.parseInt(toPeerId));
-                                    startActivity(intent);
-                                    return;
-                                }
-                            }
-                            else if (json.has("candidate"))
-                            {
-                                Intent intent = new Intent(MainActivity.this, MyCallActivity.class);
-                                intent.putExtra("candidate", response);
-                                intent.putExtra("peer_id", peerId);
-                                intent.putExtra("to_peer_id", Integer.parseInt(toPeerId));
-                                intent.putExtra("recv_from_mobile", true);
-                                startActivity(intent);
-                                return;
-                            }
-                        }
-                        catch (Exception e)
-                        {
-
-                        }
-                        peerList.clear();
-                        String[] list = response.split("\n");
-                        for (String item : list)
-                        {
-                            String[] detail = item.split(",");
-                            Peer peer = new Peer();
-                            peer.setId(Integer.parseInt(detail[1]));
-                            peer.setName(detail[0]);
-                            peerList.add(peer);
-                        }
-                        runOnUiThread(new Runnable() {
-                            @Override
-                            public void run() {
-                                listAdapter.notifyDataSetChanged();
-                            }
-                        });
-                        if (needWait)
-                        {
-                            sendWait(ip, port);
-                        }
+//                        parseWait(response, toPeerId);
+                        parseWait2(response, toPeerId);
                     }
 
                     @Override
@@ -215,11 +141,157 @@ public class MainActivity extends Activity implements PeerListAdapter.OnClickLis
                         if (!isEmpty(pId))
                         {
                             toPeerId = pId;
-                            showToast("wait recv peerId:" + pId);
                         }
                     }
                 });
         httpConnection.send();
+    }
+    private void parseWait2(final String response, final String toPeerId)
+    {
+        if (isEmpty(response))
+        {
+            return;
+        }
+        try
+        {
+            JSONObject json = new JSONObject(response);
+            if (json.has("type"))
+            {
+                String type = json.getString("type");
+                Intent intent = new Intent(MainActivity.this, MyCallActivity2.class);
+                intent.putExtra("peer_id", peerId);
+                intent.putExtra("to_peer_id", Integer.parseInt(toPeerId));
+                if (type.equals("sdp"))
+                { // from pc
+                    intent.putExtra("response", response);
+                    intent.putExtra("passivity", true); // 被动
+                    startActivity(intent);
+                }
+                else if (type.equals("mobile"))
+                { // from mobile
+                    if (json.has("msg"))
+                    {
+                        String msg = json.getString("msg");
+                        if (msg.equals("ask"))
+                        {
+                            sendMessage("{\"type\":\"mobile\", \"msg\":\"response\"}", Integer.parseInt(toPeerId));
+                            intent.putExtra("passivity", true); // 被动
+                            startActivity(intent);
+                        }
+                        else if (msg.equals("response"))
+                        {
+                            intent.putExtra("passivity", false); // 主动
+                            SystemClock.sleep(1000);
+                            startActivity(intent);//
+                        }
+                    }
+                }
+
+                return;
+            }
+        }
+        catch (Exception e) {}
+        try
+        {
+            peerList.clear();
+            String[] list = response.split("\n");
+            for (String item : list)
+            {
+                String[] detail = item.split(",");
+                Peer peer = new Peer();
+                peer.setId(Integer.parseInt(detail[1]));
+                peer.setName(detail[0]);
+                peerList.add(peer);
+            }
+            runOnUiThread(new Runnable() {
+                @Override
+                public void run() {
+                    listAdapter.notifyDataSetChanged();
+                }
+            });
+            sendWait(spHelper.getIp(), spHelper.getPort() + "");
+        }
+        catch (Exception e)
+        {
+            showToast("wait response error.");
+        }
+    }
+    private void parseWait(final String response, final String toPeerId)
+    {
+        if (isEmpty(response) || !needWait)
+        {
+            if (null != MyCallActivity.instance)
+            {
+                try
+                {
+                    MyCallActivity.instance.parseWaitResult(new JSONObject(response));
+                }
+                catch (Exception e)
+                {
+
+                }
+            }
+            return;
+        }
+        try
+        {
+            JSONObject json = new JSONObject(response);
+            if (json.has("type"))
+            {
+                if (json.getString("type").equals("offer"))
+                {
+                    Intent intent = new Intent(MainActivity.this, MyCallActivity.class);
+                    intent.putExtra("sdp", json.getString("sdp"));
+                    intent.putExtra("peer_id", peerId);
+                    intent.putExtra("to_peer_id", Integer.parseInt(toPeerId));
+                    startActivity(intent);
+                    return;
+                }
+                else if (json.getString("type").equals("candidate"))
+                {
+                    Intent intent = new Intent(MainActivity.this, MyCallActivity.class);
+                    intent.putExtra("candidate", response);
+                    intent.putExtra("peer_id", peerId);
+                    intent.putExtra("to_peer_id", Integer.parseInt(toPeerId));
+                    startActivity(intent);
+                    return;
+                }
+            }
+            else if (json.has("candidate"))
+            {
+                Intent intent = new Intent(MainActivity.this, MyCallActivity.class);
+                intent.putExtra("candidate", response);
+                intent.putExtra("peer_id", peerId);
+                intent.putExtra("to_peer_id", Integer.parseInt(toPeerId));
+                intent.putExtra("recv_from_mobile", true);
+                startActivity(intent);
+                return;
+            }
+        }
+        catch (Exception e)
+        {
+
+        }
+        peerList.clear();
+        String[] list = response.split("\n");
+        for (String item : list)
+        {
+            String[] detail = item.split(",");
+            Peer peer = new Peer();
+            peer.setId(Integer.parseInt(detail[1]));
+            peer.setName(detail[0]);
+            peerList.add(peer);
+        }
+        runOnUiThread(new Runnable() {
+            @Override
+            public void run() {
+                listAdapter.notifyDataSetChanged();
+            }
+        });
+        if (needWait)
+        {
+            sendWait(spHelper.getIp(), spHelper.getPort() + "");
+        }
     }
     private void showToast(final String content)
     {
@@ -245,10 +317,29 @@ public class MainActivity extends Activity implements PeerListAdapter.OnClickLis
 
     @Override
     public void onClick(Peer peer) {
-        needWait = false;
-        Intent intent = new Intent(this, MyCallActivity.class);
-        intent.putExtra("peer_id", peerId);
-        intent.putExtra("to_peer_id", peer.getId());
-        startActivity(intent);
+//        sendWait(spHelper.getIp(), spHelper.getPort(), );
+        sendMessage("{\"type\":\"mobile\", \"msg\":\"ask\"}", peer.getId());
+    }
+
+    private void sendMessage(final String message, final int toPeerId)
+    {
+        final String url = "http://" + spHelper.getIp() + ":" + spHelper.getPort() + "/message?peer_id=" + peerId +"&to=" + toPeerId;
+        AsyncHttpURLConnection httpConnection =
+                new AsyncHttpURLConnection("POST", url, message, new AsyncHttpURLConnection.AsyncHttpEvents() {
+                    @Override
+                    public void onHttpError(String errorMessage) {
+                        Log.e(TAG, "Room connection error: " + errorMessage);
+                    }
+
+                    @Override
+                    public void onHttpComplete(String response)
+                    {
+                    }
+
+                    @Override
+                    public void onPeerId(String pId) {
+                    }
+                }, peerId);
+        httpConnection.send();
     }
 }

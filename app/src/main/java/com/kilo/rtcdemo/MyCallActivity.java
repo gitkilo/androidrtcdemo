@@ -183,7 +183,7 @@ public class MyCallActivity extends Activity implements PeerConnectionClient.Pee
         }
         peerId = intent.getIntExtra("peer_id", 0);
         toPeerId = intent.getIntExtra("to_peer_id", 0);
-        recvSdp = intent.getStringExtra("sdp");
+        recvSdp = intent.getStringExtra("response");
         pipRenderer.init(eglBase.getEglBaseContext(), null);
         pipRenderer.setScalingType(RendererCommon.ScalingType.SCALE_ASPECT_FIT);
         if (isEmpty(recvSdp))
@@ -526,9 +526,9 @@ public class MyCallActivity extends Activity implements PeerConnectionClient.Pee
         JSONObject json = new JSONObject();
         jsonPut(json, "sdp", sdp.description);
         jsonPut(json, "type", "offer");
-//        sendWait(json.toString(), toPeerId);
-        sendMessage(json.toString());
-        sendWait("", -1);
+        sendWait(json.toString(), toPeerId);
+//        sendMessage(json.toString());
+//        sendWait("", -1);
     }
 
     public void sendAnswerSdp(final SessionDescription sdp) {

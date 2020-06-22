@@ -54,6 +54,7 @@
             </intent-filter>
         </activity>
         <activity android:name=".MyCallActivity"/>
+        <activity android:name=".MyCallActivity2" />
         <activity android:name="org.appspot.apprtc.SettingsActivity"
             android:label="@string/settings_name"
             android:theme="@style/AppTheme">
