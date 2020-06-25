@@ -2,13 +2,14 @@ package com.kilo.rtcdemo;
 
 import android.content.Context;
 import android.content.SharedPreferences;
+import android.preference.PreferenceManager;
 
 import javax.annotation.Nullable;
 
 public class SPHelper
 {
     private Context mContext;
-    private SharedPreferences sp;
+    private SharedPreferences sharedPref;
     private SharedPreferences.Editor editor;
     private static final String SERV_IP = "_serv_ip_";
     private static final String SERV_PORT = "_serv_port_";
@@ -18,8 +19,9 @@ public class SPHelper
     private SPHelper(@Nullable Context context)
     {
         mContext = context;
-        sp = mContext.getSharedPreferences("rtc_demo", Context.MODE_PRIVATE);
-        editor = sp.edit();
+        PreferenceManager.setDefaultValues(mContext, R.xml.preferences, false);
+        sharedPref = PreferenceManager.getDefaultSharedPreferences(mContext);
+        editor = sharedPref.edit();
     }
 
     public static SPHelper getInstance(Context context)
@@ -32,7 +34,7 @@ public class SPHelper
     }
     public String getIp()
     {
-        return sp.getString(SERV_IP, "192.168.0.125");
+        return sharedPref.getString(SERV_IP, "192.168.0.125");
     }
     public void setIp(String ip)
     {
@@ -41,7 +43,7 @@ public class SPHelper
     }
     public int getPort()
     {
-        return sp.getInt(SERV_PORT, 8888);
+        return sharedPref.getInt(SERV_PORT, 8888);
     }
     public void setPort(int port)
     {
@@ -50,11 +52,15 @@ public class SPHelper
     }
     public String getPeerName()
     {
-        return sp.getString(PEER_NAME, "android");
+        return sharedPref.getString(PEER_NAME, "android");
     }
     public void setPeerName(String name)
     {
         editor.putString(PEER_NAME, name);
         editor.commit();
+    }
+
+    public SharedPreferences getSP() {
+        return sharedPref;
     }
 }

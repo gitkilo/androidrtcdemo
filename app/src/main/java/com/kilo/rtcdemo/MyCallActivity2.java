@@ -22,6 +22,7 @@ import org.webrtc.CameraEnumerator;
 import org.webrtc.EglBase;
 import org.webrtc.IceCandidate;
 import org.webrtc.Logging;
+import org.webrtc.PeerConnection;
 import org.webrtc.PeerConnectionFactory;
 import org.webrtc.RendererCommon;
 import org.webrtc.SessionDescription;
@@ -32,17 +33,11 @@ import org.webrtc.VideoFrame;
 import org.webrtc.VideoSink;
 
 import java.io.BufferedReader;
-import java.io.DataOutputStream;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.OutputStreamWriter;
 import java.io.PrintWriter;
-import java.io.UnsupportedEncodingException;
-import java.net.HttpURLConnection;
-import java.net.MalformedURLException;
 import java.net.Socket;
-import java.net.URL;
-import java.net.URLEncoder;
 import java.nio.charset.Charset;
 import java.util.ArrayList;
 import java.util.List;
@@ -74,7 +69,6 @@ public class MyCallActivity2 extends Activity implements PeerConnectionClient.Pe
             "android.permission.RECORD_AUDIO", "android.permission.INTERNET"};
     private int peerId;
     private int toPeerId;
-    private String recvSdp;
     private boolean passivity; // 是否被动
     // True if local view is in the fullscreen renderer.
     private boolean isSwappedFeeds;
@@ -94,7 +88,7 @@ public class MyCallActivity2 extends Activity implements PeerConnectionClient.Pe
     private final MyCallActivity2.ProxyVideoSink remoteProxyRenderer = new MyCallActivity2.ProxyVideoSink();
     private final MyCallActivity2.ProxyVideoSink localProxyVideoSink = new MyCallActivity2.ProxyVideoSink();
     private SPHelper spHelper;
-
+    private List<PeerConnection.IceServer> iceServers;
     @Override
     protected void onCreate(@Nullable Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -117,6 +111,7 @@ public class MyCallActivity2 extends Activity implements PeerConnectionClient.Pe
         // Create and audio manager that will take care of audio routing,
         // audio modes, audio device enumeration etc.
         audioManager = AppRTCAudioManager.create(getApplicationContext());
+//        audioManager.setDefaultAudioDevice(AppRTCAudioManager.AudioDevice.SPEAKER_PHONE);
         // Store existing audio settings and change audio mode to
         // MODE_IN_COMMUNICATION for best possible VoIP performance.
         Log.d(TAG, "Starting the audio manager...");
@@ -146,7 +141,6 @@ public class MyCallActivity2 extends Activity implements PeerConnectionClient.Pe
         }
         peerId = intent.getIntExtra("peer_id", 0);
         toPeerId = intent.getIntExtra("to_peer_id", 0);
-        recvSdp = intent.getStringExtra("sdp");
         passivity = intent.getBooleanExtra("passivity", false);
         pipRenderer.init(eglBase.getEglBaseContext(), null);
         pipRenderer.setScalingType(RendererCommon.ScalingType.SCALE_ASPECT_FIT);
@@ -179,22 +173,101 @@ public class MyCallActivity2 extends Activity implements PeerConnectionClient.Pe
 //                    intent.getIntExtra(EXTRA_MAX_RETRANSMITS, -1), intent.getStringExtra(EXTRA_PROTOCOL),
 //                    intent.getBooleanExtra(EXTRA_NEGOTIATED, false), intent.getIntExtra(EXTRA_ID, -1));
 //        }
+
+        // Video call enabled flag.
+        boolean videoCallEnabled = sharedPrefGetBoolean(R.string.pref_videocall_key, R.string.pref_videocall_default);
+
+        // Use screencapture option.
+//        boolean useScreencapture = sharedPrefGetBoolean(R.string.pref_screencapture_key, R.string.pref_screencapture_default);
+
+        // Use Camera2 option.
+//        boolean useCamera2 = sharedPrefGetBoolean(R.string.pref_camera2_key, R.string.pref_camera2_default);
+
+        // Get default codecs.
+        String videoCodec = sharedPrefGetString(R.string.pref_videocodec_key, R.string.pref_videocodec_default);
+        String audioCodec = sharedPrefGetString(R.string.pref_audiocodec_key, R.string.pref_audiocodec_default);
+
+        // Check HW codec flag.
+        boolean hwCodec = sharedPrefGetBoolean(R.string.pref_hwcodec_key, R.string.pref_hwcodec_default);
+
+        // Check Capture to texture.
+//        boolean captureToTexture = sharedPrefGetBoolean(R.string.pref_capturetotexture_key, R.string.pref_capturetotexture_default);
+
+        // Check FlexFEC.
+        boolean flexfecEnabled = sharedPrefGetBoolean(R.string.pref_flexfec_key, R.string.pref_flexfec_default);
+
+        // Check Disable Audio Processing flag.
+        boolean noAudioProcessing = sharedPrefGetBoolean(R.string.pref_noaudioprocessing_key, R.string.pref_noaudioprocessing_default);
+
+        boolean aecDump = sharedPrefGetBoolean(R.string.pref_aecdump_key, R.string.pref_aecdump_default);
+
+        boolean saveInputAudioToFile =
+                sharedPrefGetBoolean(R.string.pref_enable_save_input_audio_to_file_key,
+                        R.string.pref_enable_save_input_audio_to_file_default);
+
+        // Check OpenSL ES enabled flag.
+        boolean useOpenSLES = sharedPrefGetBoolean(R.string.pref_opensles_key, R.string.pref_opensles_default);
+
+        // Check Disable built-in AEC flag.
+        boolean disableBuiltInAEC = sharedPrefGetBoolean(R.string.pref_disable_built_in_aec_key, R.string.pref_disable_built_in_aec_default);
+
+        // Check Disable built-in AGC flag.
+        boolean disableBuiltInAGC = sharedPrefGetBoolean(R.string.pref_disable_built_in_agc_key, R.string.pref_disable_built_in_agc_default);
+
+        // Check Disable built-in NS flag.
+        boolean disableBuiltInNS = sharedPrefGetBoolean(R.string.pref_disable_built_in_ns_key, R.string.pref_disable_built_in_ns_default);
+
+        // Check Disable gain control
+        boolean disableWebRtcAGCAndHPF = sharedPrefGetBoolean(
+                R.string.pref_disable_webrtc_agc_and_hpf_key, R.string.pref_disable_webrtc_agc_and_hpf_key);
+        boolean enableRtcEventLog = sharedPrefGetBoolean(R.string.pref_enable_rtceventlog_key, R.string.pref_enable_rtceventlog_default);
+//        int audioStartBitrate = SPHelper.getInstance(this).getSP().getInt(getString(R.string.pref_startaudiobitratevalue_key), 32);
+        int audioStartBitrate = Integer.parseInt(sharedPrefGetString(R.string.pref_startaudiobitratevalue_key,
+                R.string.pref_startaudiobitratevalue_default));
+        int videoMaxBitrate = Integer.parseInt(sharedPrefGetString(R.string.pref_maxvideobitratevalue_key,
+                R.string.pref_maxvideobitratevalue_default));
+        int videoWidth = 0, videoHeight = 0;
+        String resolution = sharedPrefGetString(R.string.pref_resolution_key, R.string.pref_resolution_default);
+        String[] dimensions = resolution.split("[ x]+");
+        if (dimensions.length == 2) {
+            try {
+                videoWidth = Integer.parseInt(dimensions[0]);
+                videoHeight = Integer.parseInt(dimensions[1]);
+            } catch (NumberFormatException e) {
+                videoWidth = 0;
+                videoHeight = 0;
+                Log.e(TAG, "Wrong video resolution setting: " + resolution);
+            }
+        }
+
+        String fps = sharedPrefGetString(R.string.pref_fps_key, R.string.pref_fps_default);
+        int cameraFps = 0;
+        String[] fpsValues = fps.split("[ x]+");
+        if (fpsValues.length == 2) {
+            try {
+                cameraFps = Integer.parseInt(fpsValues[0]);
+            } catch (NumberFormatException e) {
+                cameraFps = 0;
+                Log.e(TAG, "Wrong camera fps setting: " + fps);
+            }
+        }
         peerConnectionParameters =
-                new PeerConnectionClient.PeerConnectionParameters(true, false,
-                        false, 640, 480, 15,
-                        256, "VP8",
-                        true,
-                        false,
-                        0, "OPUS",
-                        false,
-                        false,
-                        false,
-                        false,
-                        false,
-                        true,
-                        true,
-                        true,
-                        false,
+                new PeerConnectionClient.PeerConnectionParameters(videoCallEnabled, false,
+                        false, videoWidth, videoHeight, cameraFps,
+                        videoMaxBitrate, videoCodec,
+                        hwCodec,
+                        flexfecEnabled,
+                        audioStartBitrate,
+                        audioCodec,
+                        noAudioProcessing,
+                        aecDump,
+                        saveInputAudioToFile,
+                        useOpenSLES,
+                        disableBuiltInAEC,
+                        disableBuiltInAGC,
+                        disableBuiltInNS,
+                        disableWebRtcAGCAndHPF,
+                        enableRtcEventLog,
                         dataChannelParameters);
 
         peerConnectionClient = new PeerConnectionClient(
@@ -205,6 +278,26 @@ public class MyCallActivity2 extends Activity implements PeerConnectionClient.Pe
 //        }
         peerConnectionClient.createPeerConnectionFactory(options);
     }
+
+    /**
+     * Get a value from the shared preference or from the intent, if it does not
+     * exist the default is used.
+     */
+    private boolean sharedPrefGetBoolean(
+            int attributeId, int defaultId) {
+        boolean defaultValue = Boolean.parseBoolean(getString(defaultId));
+        String attributeName = getString(attributeId);
+        return SPHelper.getInstance(this).getSP().getBoolean(attributeName, defaultValue);
+    }
+
+    @Nullable
+    private String sharedPrefGetString(
+            int attributeId, int defaultId) {
+        String defaultValue = getString(defaultId);
+        String attributeName = getString(attributeId);
+        return SPHelper.getInstance(this).getSP().getString(attributeName, defaultValue);
+    }
+
     private void startCall()
     {
         if (!passivity) {
@@ -281,7 +374,7 @@ public class MyCallActivity2 extends Activity implements PeerConnectionClient.Pe
 
     private void sendSignOut()
     {
-        final String url = "http://" + spHelper.getIp() + ":" + spHelper.getPort() + "/sign_out?peer_id=" + peerId;
+        final String url = "http://" + SPHelper.getInstance(this).getIp() + ":" + SPHelper.getInstance(this).getPort() + "/sign_out?peer_id=" + peerId;
         final String message = "";
         AsyncHttpURLConnection httpConnection =
                 new AsyncHttpURLConnection("GET", url, message, new AsyncHttpURLConnection.AsyncHttpEvents() {

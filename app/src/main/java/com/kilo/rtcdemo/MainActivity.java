@@ -2,15 +2,23 @@ package com.kilo.rtcdemo;
 
 import android.app.Activity;
 import android.content.Intent;
+import android.content.SharedPreferences;
 import android.os.Bundle;
-import android.os.SystemClock;
+import android.preference.PreferenceManager;
 import android.util.Log;
+import android.view.ContextMenu;
+import android.view.Menu;
+import android.view.MenuItem;
 import android.view.View;
+import android.widget.AdapterView;
 import android.widget.EditText;
 import android.widget.ListView;
 import android.widget.Toast;
 
+import org.appspot.apprtc.SettingsActivity;
 import org.appspot.apprtc.util.AsyncHttpURLConnection;
+import org.json.JSONArray;
+import org.json.JSONException;
 import org.json.JSONObject;
 
 import java.util.ArrayList;
@@ -26,7 +34,11 @@ public class MainActivity extends Activity implements PeerListAdapter.OnClickLis
     private int peerId;
     private List<Peer> peerList = new ArrayList<>();
     private PeerListAdapter listAdapter;
-    private boolean needWait;
+
+    private List<String> roomList;
+    private String keyprefRoomList;
+    private SharedPreferences sharedPref;
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -46,6 +58,9 @@ public class MainActivity extends Activity implements PeerListAdapter.OnClickLis
         lvPeer = findViewById(R.id.lv_peer);
         listAdapter = new PeerListAdapter(this, this, peerList);
         lvPeer.setAdapter(listAdapter);
+
+        sharedPref = PreferenceManager.getDefaultSharedPreferences(this);
+        keyprefRoomList = getString(R.string.pref_room_list_key);
     }
 
     public void onClick(View v)
@@ -181,7 +196,7 @@ public class MainActivity extends Activity implements PeerListAdapter.OnClickLis
                         else if (msg.equals("response"))
                         {
                             intent.putExtra("passivity", false); // 主动
-                            SystemClock.sleep(1000);
+//                            SystemClock.sleep(1000);
                             startActivity(intent);//
                         }
                     }
@@ -218,7 +233,7 @@ public class MainActivity extends Activity implements PeerListAdapter.OnClickLis
     }
     private void parseWait(final String response, final String toPeerId)
     {
-        if (isEmpty(response) || !needWait)
+        if (isEmpty(response))
         {
             if (null != MyCallActivity.instance)
             {
@@ -288,10 +303,10 @@ public class MainActivity extends Activity implements PeerListAdapter.OnClickLis
                 listAdapter.notifyDataSetChanged();
             }
         });
-        if (needWait)
-        {
+//        if (needWait)
+//        {
             sendWait(spHelper.getIp(), spHelper.getPort() + "");
-        }
+//        }
     }
     private void showToast(final String content)
     {
@@ -307,7 +322,19 @@ public class MainActivity extends Activity implements PeerListAdapter.OnClickLis
     @Override
     protected void onResume() {
         super.onResume();
-        needWait = true;
+
+        roomList = new ArrayList<>();
+        String roomListJson = sharedPref.getString(keyprefRoomList, null);
+        if (roomListJson != null) {
+            try {
+                JSONArray jsonArray = new JSONArray(roomListJson);
+                for (int i = 0; i < jsonArray.length(); i++) {
+                    roomList.add(jsonArray.get(i).toString());
+                }
+            } catch (JSONException e) {
+                Log.e(TAG, "Failed to load room list: " + e.toString());
+            }
+        }
     }
 
     private boolean isEmpty(String val)
@@ -341,5 +368,39 @@ public class MainActivity extends Activity implements PeerListAdapter.OnClickLis
                     }
                 }, peerId);
         httpConnection.send();
+    }
+
+    @Override
+    public boolean onCreateOptionsMenu(Menu menu) {
+        getMenuInflater().inflate(R.menu.connect_menu, menu);
+        return true;
+    }
+
+    @Override
+    public void onCreateContextMenu(ContextMenu menu, View v, ContextMenu.ContextMenuInfo menuInfo) {
+        if (v.getId() == R.id.room_listview) {
+            AdapterView.AdapterContextMenuInfo info = (AdapterView.AdapterContextMenuInfo) menuInfo;
+            menu.setHeaderTitle(roomList.get(info.position));
+            String[] menuItems = getResources().getStringArray(R.array.roomListContextMenu);
+            for (int i = 0; i < menuItems.length; i++) {
+                menu.add(Menu.NONE, i, i, menuItems[i]);
+            }
+        } else {
+            super.onCreateContextMenu(menu, v, menuInfo);
+        }
+    }
+
+    @Override
+    public boolean onOptionsItemSelected(MenuItem item) {
+        // Handle presses on the action bar items.
+        if (item.getItemId() == R.id.action_settings) {
+            Intent intent = new Intent(this, SettingsActivity.class);
+            startActivity(intent);
+            return true;
+        } else if (item.getItemId() == R.id.action_loopback) {
+            return true;
+        } else {
+            return super.onOptionsItemSelected(item);
+        }
     }
 }
